@@ -1,0 +1,302 @@
+---
+title: "Results"
+author: "Laura Tiemann"
+output:
+  html_document:
+    toc: yes
+    theme: flatly
+    highlight: haddock
+    code_download: yes
+    df_print: paged
+---
+
+Display of results, consisting in descriptive results, the mediation analysis, and an explorative analysis resulting of a correlation matrix.
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(mediation)
+library(corrplot)
+library(mltools)
+library(ggcorrplot)
+library(data.table)
+```
+
+# Loading the Prepared and Preprocessed Data
+
+```{r}
+
+data <- read.csv("bachelor_thesis_prepared_data.csv") 
+
+
+data_preprocessed <- read.csv("bachelor_thesis_preprocessed_data.csv") 
+
+```
+
+
+# Demographic Data {.tabset}
+
+## Age 
+```{r}
+data_age_mean <- na.omit(data$Age) %>% 
+  mean() 
+
+data_age_sd <- na.omit(data$Age) %>% 
+  sd() 
+
+data_age_mean
+data_age_sd
+
+```
+
+## Gender 
+```{r}
+data_gender <- data_preprocessed %>% 
+  dplyr::select(Gender) %>%
+  group_by(Gender) %>% 
+  dplyr::count(Gender) %>% 
+  summarise(Anteil = round(100*n / sum(.$n), digits = 2)) %>% 
+  mutate(Gender = case_when(
+    Gender == "d" ~ "Diverse",
+    Gender == "m" ~ "Male",
+    Gender == "f" ~ "Female"
+  )) %>% 
+  dplyr::arrange(desc(Anteil))
+  
+data_gender
+```
+
+## Education 
+```{r}
+data_education <- data_preprocessed %>% 
+  dplyr::select(Education) %>%
+  group_by(Education) %>% 
+  dplyr::count(Education) %>% 
+  summarise(Anteil = round(100*n / sum(.$n), digits = 2)) %>% 
+  dplyr::arrange(desc(Anteil)) 
+
+data_education
+```
+
+
+# Descriptive Results 
+
+## Journaling, Counterfactuals, and Self-efficacy
+```{r}
+descriptive_results <- data_preprocessed %>% 
+  dplyr::select(Journaling, Counterfactuals, SelfEfficacy) %>% 
+  summary()
+
+descriptive_results
+
+```
+
+
+## Descriminating Journaling {.tabset}
+
+### Frequency
+
+```{r}
+
+
+data_journal <- data %>% 
+  dplyr::select(Journaling1) %>% 
+  
+  group_by(Journaling1) %>% 
+  dplyr::count(Journaling1) %>% 
+  summarise(Anteil = round(100*n / sum(.$n), digits = 2)) %>% 
+  mutate(Journaling1 = case_when(
+    Journaling1 == 1 ~ "Never",
+    Journaling1 == 2 ~ "Seldom",
+    Journaling1 == 3 ~ "Sometimes",
+    Journaling1 == 4 ~ "Often",
+    Journaling1 == 5 ~ "Very often",
+
+    TRUE ~ as.character(Journaling1)  # Default case, no change
+  ))  %>% 
+  rename(Journaling_Häufigkeit = "Journaling1") %>% 
+  dplyr::arrange(desc(Anteil))
+
+data_journal
+
+
+```
+
+
+### Last Entry
+
+```{r}
+
+
+data_journal3 <- data %>% 
+  dplyr::select(Journaling3) %>% 
+  
+  group_by(Journaling3) %>% 
+  dplyr::count(Journaling3) %>% 
+  summarise(Anteil = round(100*n / sum(.$n), digits = 2)) %>% 
+  mutate(Journaling3 = case_when(
+    Journaling3 == 1 ~ "Never",
+    Journaling3 == 2 ~ "More than a month ago",
+    Journaling3 == 3 ~ "This month",
+    Journaling3 == 4 ~ "This week",
+    Journaling3 == 5 ~ "Today",
+
+    TRUE ~ as.character(Journaling3)  # Default case, no change
+  ))  %>% 
+  rename(Journaling_last_entry = "Journaling3") %>% 
+  dplyr::arrange(desc(Anteil))
+
+data_journal3
+
+
+```
+
+
+# Mediation Analysis 
+
+## Creating the Regression Models {.tabset}
+
+### Counterfactual Thinking and Journaling 
+
+```{r}
+path_a <- lm(Counterfactuals ~ Journaling, data_preprocessed)
+summary(path_a)
+```
+
+### Self-efficacy Through Journaling and Counterfactual Thinking  
+
+```{r}
+path_bc <- lm(SelfEfficacy ~ Journaling + Counterfactuals, data_preprocessed)
+summary(path_bc)
+```
+
+
+## Analysis
+
+```{r}
+results <- mediate(path_a, path_bc, treat = "Journaling", mediator = "Counterfactuals", boot = TRUE, sims = 2000)
+
+summary(results)
+
+```
+
+
+
+# Explorative Results 
+
+## Correlation Matrix 
+
+
+### Preparing the Data {.tabset}
+
+#### Factorization
+```{r}
+data_preprocessed$Gender <- as.factor(data_preprocessed$Gender)
+data_preprocessed$Education <- as.factor(data_preprocessed$Education)
+```
+
+#### One-hot Encoding 
+```{r}
+data_encoded <- one_hot(as.data.table(data_preprocessed))
+
+```
+#### Correlation
+
+```{r}
+correlation_matrix <- cor(data_encoded, use = "pairwise.complete.obs")
+
+```
+
+
+### Plotting the Matrix 
+
+```{r, warning=FALSE}
+correlation_matrix %>% 
+  ggcorrplot(show.diag=FALSE, type="lower", lab=TRUE, lab_size=3, tl.cex = 10) + 
+      theme(plot.title = element_text(size = 20), 
+            plot.subtitle = element_text(size = 15), 
+            plot.caption = element_text(size = 12)) +
+      coord_fixed(ratio = 1) 
+
+```
+
+## Age and Self-Efficacy 
+
+```{r}
+model_age_se <- lm(SelfEfficacy ~ Age, data = data_preprocessed)
+
+summary(model_age_se)
+
+```
+
+
+## Gender {.tabset}
+
+
+### Gender and Journaling
+
+```{r}
+model_journaling_gender <- glm(data_preprocessed$Journaling ~ data_preprocessed$Gender, data = data_preprocessed)
+
+
+summary(model_journaling_gender)
+
+```
+
+### Gender and Counterfactual Thinking 
+
+```{r}
+model_cft_gender <- glm(data_preprocessed$Counterfactuals ~ data_preprocessed$Gender, data = data_preprocessed)
+
+
+cft_gender <- summary(model_cft_gender)
+
+```
+
+
+
+### Gender and Self-Efficacy 
+
+```{r}
+model_se_gender <- glm(data_preprocessed$SelfEfficacy ~ data_preprocessed$Gender, data = data_preprocessed)
+
+
+summary(model_se_gender)
+```
+
+
+
+## Journaling Frequency {.tabset}
+
+### Frequency
+
+```{r}
+model_frequency <- lm(SelfEfficacy ~ Journaling3, data = data)
+
+
+summary(model_frequency)
+```
+
+
+### Last Entry
+
+```{r}
+
+model_LastEntry <- lm(SelfEfficacy ~ Journaling1, data = data)
+
+
+summary(model_LastEntry)
+
+head(data)
+
+```
+
+
+
+
+
+
+
+
+
