@@ -9,9 +9,9 @@ that was handed in by Laura Tiemann on May 08, 2024, at the Institute of Cogniti
 ## View the HTML Files
 The knitted HTML files can be accessed via the following links: \
 [Preprocessing](https://html-preview.github.io/?url=https://github.com/lauratie/BachelorThesis/blob/main/Bachelorthesis_preprocessing.html) \
-[Results](https://html-preview.github.io/?url=https://github.com/lauratie/BachelorThesis/blob/main/Bachelorthesis_results.html) \
+[Results](https://html-preview.github.io/?url=https://github.com/lauratie/BachelorThesis/blob/main/Bachelorthesis_results.html) 
 
-Additionally, the R Code can be downloaded via the HTML files. \
+Additionally, the R Code can be downloaded via the HTML files. 
 
 
 ## Data Protection
